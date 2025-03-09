@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = 'https://hub.docker.com/repository/docker/binta9619/laravel'
-        IMAGE_NAME = 'school-management-app'
+        REGISTRY = 'docker.io'
+        IMAGE_NAME = 'binta9619/laravel'
         IMAGE_TAG = 'latest'
         GIT_REPO = 'https://github.com/Bineta-crypto/laravel.git'
-        SONAR_TOKEN = credentials('sonar-token')
+        DOCKER_CREDENTIALS = credentials('docker-credentials')
         KUBE_CONFIG = credentials('kubeconfig')
     }
 
@@ -19,30 +19,30 @@ pipeline {
 
         stage('Installation des dépendances Laravel') {
             steps {
-                sh 'cp .env.example .env'
                 sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
                 sh 'php artisan key:generate'
-                sh 'php artisan migrate --force'
             }
         }
 
         stage('Installation & build du frontend Node.js') {
             steps {
-                sh 'npm install --production'
+                sh 'npm ci'
                 sh 'NODE_ENV=production npm run build'
             }
         }
 
         stage('Tests unitaires & IHM') {
             steps {
-                sh 'php artisan test'  // Tests Laravel
-                sh 'npm test'          // Tests Selenium pour le frontend
+                sh 'php artisan test'
+                sh 'npm test'
             }
         }
 
-        stage('Analyse de la qualité logicielle') {
+        stage('Connexion à Docker Hub') {
             steps {
-                sh 'sonar-scanner -Dsonar.projectKey=school-management -Dsonar.sources=./ -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_TOKEN'
+                withCredentials([usernamePassword(credentialsId: 'docker-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                }
             }
         }
 
@@ -64,9 +64,9 @@ pipeline {
             steps {
                 withKubeConfig([credentialsId: 'kubeconfig']) {
                     sh """
-                    kubectl get nodes
                     kubectl apply -f k8s/deployment.yaml
                     kubectl apply -f k8s/service.yaml
+                    kubectl rollout restart deployment/laravel-app
                     """
                 }
             }
@@ -75,10 +75,10 @@ pipeline {
 
     post {
         success {
-            echo 'Déploiement réussi !'
+            echo ' Déploiement réussi !'
         }
         failure {
-            echo 'Échec du déploiement !'
+            echo ' Échec du déploiement !'
         }
     }
 }
