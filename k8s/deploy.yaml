@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: laravel-app
-          image: binta9619/laravel:latest
+          image: school-management-app:latest
           ports:
             - containerPort: 9000
           env:
