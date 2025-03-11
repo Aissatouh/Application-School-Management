@@ -2,71 +2,82 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "school-management-app:latest"
-        GIT_REPO = "https://github.com/Aissatouh/Application-School-Management.git"
+        REGISTRY = 'docker.io'
+        IMAGE_NAME = 'devaichaa/devops'
+        IMAGE_TAG = 'latest'
+        GIT_REPO = 'https://github.com/Aissatouh/Application-School-Management.gitA'
+        DOCKER_CREDENTIALS = credentials('docker-credentials')
+        KUBE_CONFIG = credentials('kubeconfig')
     }
 
     stages {
         stage('Récupération du code source') {
             steps {
-                git url: "${GIT_REPO}", branch: 'main'
+                git branch: 'main', url: "${GIT_REPO}"
             }
         }
 
         stage('Installation des dépendances Laravel') {
             steps {
-                sh 'composer install'
+                sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
                 sh 'php artisan key:generate'
-                sh 'php artisan migrate --force'
             }
         }
 
         stage('Installation & build du frontend Node.js') {
             steps {
-                sh 'npm install'
-                sh 'npm run build'
+                sh 'npm ci'
+                sh 'NODE_ENV=production npm run build'
             }
         }
 
         stage('Tests unitaires & IHM') {
             steps {
-                sh 'php artisan test'    // Tests Laravel
-                sh 'npm test'            // Tests Selenium pour le frontend
+                sh 'php artisan test'
+                sh 'npm test'
             }
         }
 
-        stage('Analyse de la qualité logicielle') {
+        stage('Connexion à Docker Hub') {
             steps {
-                sh 'sonar-scanner -Dsonar.projectKey=school-management -Dsonar.sources=./ -Dsonar.host.url=http://localhost:9000 -Dsonar.login=votre_token'
+                withCredentials([usernamePassword(credentialsId: 'docker-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                }
             }
         }
 
         stage('Création de l\'image Docker') {
             steps {
-                sh 'docker build -t ${DOCKER_IMAGE} .'
+                sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ."
             }
         }
 
         stage('Push de l\'image Docker') {
             steps {
-                sh 'docker tag ${DOCKER_IMAGE} mon-registry/${DOCKER_IMAGE}'
-                sh 'docker push mon-registry/${DOCKER_IMAGE}'
+                withDockerRegistry([credentialsId: 'docker-credentials', url: "https://${REGISTRY}"]) {
+                    sh "docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+                }
             }
         }
 
         stage('Déploiement sur Kubernetes') {
             steps {
-                sh 'kubectl apply -f deployment.yaml'
+                withKubeConfig([credentialsId: 'kubeconfig']) {
+                    sh """
+                    kubectl apply -f k8s/deployment.yaml
+                    kubectl apply -f k8s/service.yaml
+                    """
+                }
             }
         }
     }
 
     post {
         success {
-            echo 'Déploiement réussi !'
+            echo ' Déploiement réussi !'
         }
         failure {
-            echo 'Échec du déploiement !'
+            echo ' Échec du déploiement !'
         }
     }
 }
