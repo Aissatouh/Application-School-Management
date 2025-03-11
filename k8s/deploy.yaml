@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laravel-app
+  namespace: laravel
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: laravel-app
+  template:
+    metadata:
+      labels:
+        app: laravel-app
+    spec:
+      containers:
+        - name: laravel-app
+          image: school-management-app:latest
+          ports:
+            - containerPort: 9000
+          env:
+            - name: APP_ENV
+              value: "production"
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: laravel-secrets
+                  key: APP_KEY
+            - name: DB_CONNECTION
+              value: "mysql"
+            - name: DB_HOST
+              value: "mysql-service"
+            - name: DB_DATABASE
+              value: "laravel"
+            - name: DB_USERNAME
+              value: "root"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: laravel-secrets
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: storage
+              mountPath: /var/www/storage
+      volumes:
+        - name: storage
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: laravel-secrets
+  namespace: laravel
+type: Opaque
+data:
+  APP_KEY: <base64_encoded_app_key>
+  DB_PASSWORD: <base64_encoded_password>
