@@ -2,10 +2,10 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = 'docker.io'
-        IMAGE_NAME = 'binta9619/laravel'
+        REGISTRY = 'docker.io/devaichaa/devops'
+        IMAGE_NAME = 'school-management-app'
         IMAGE_TAG = 'latest'
-        GIT_REPO = 'https://github.com/Bineta-crypto/laravel.git'
+        GIT_REPO = 'https://github.com/Aissatouh/Application-School-Management.gitA'
         DOCKER_CREDENTIALS = credentials('docker-credentials')
         KUBE_CONFIG = credentials('kubeconfig')
     }
