@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = 'docker.io'
-        IMAGE_NAME = 'devaichaa/devops'
+        REGISTRY = 'docker.io/devaichaa/devops'
+        IMAGE_NAME = 'school-management-app'
         IMAGE_TAG = 'latest'
         GIT_REPO = 'https://github.com/Aissatouh/Application-School-Management.gitA'
         DOCKER_CREDENTIALS = credentials('docker-credentials')
